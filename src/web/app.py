@@ -236,17 +236,17 @@ def decrypt_file():
     except Exception as e:
         return jsonify({'error': f'Decryption failed: {str(e)}'}), 500
 
-def run_app(debug=False, port=5000):
+def run_app(debug=False, port=8000):
     """Run the Flask application."""
     print("\n" + "="*60)
     print("  File Encryption Tool - Web GUI")
     print("="*60)
-    print(f"\n🌐 Opening application at: http://localhost:{port}")
+    print(f"\n🌐 Opening application at: http://127.0.0.1:{port}")
     print("🔐 Davenport University - Secure File Encryption\n")
 
     # Open browser
     import webbrowser
-    webbrowser.open(f'http://localhost:{port}')
+    webbrowser.open(f'http://127.0.0.1:{port}')
 
     # Run app
     app.run(debug=debug, port=port, host='127.0.0.1')
