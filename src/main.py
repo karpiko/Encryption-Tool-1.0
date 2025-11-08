@@ -30,8 +30,8 @@ except ImportError:
         pass
 
 
-from src.encryptors import FernetEncryptor, AESEncryptor, RSAEncryptor
-from src.utils import FileHandler
+from encryptors import FernetEncryptor, AESEncryptor, RSAEncryptor
+from utils import FileHandler
 
 
 def print_header():
