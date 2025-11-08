@@ -1,7 +1,6 @@
 """Main GUI window for the encryption tool."""
 
 import customtkinter as ctk
-import tkinterdnd
 from tkinter import filedialog
 import os
 from pathlib import Path
