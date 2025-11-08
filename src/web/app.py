@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 import tempfile
 from pathlib import Path
 import io
+import base64
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -43,15 +44,19 @@ def generate_key():
 
         if algorithm == 'fernet':
             key = FernetEncryptor.generate_key()
+            # Fernet keys are already base64-encoded
+            key_str = key.decode('utf-8')
         elif algorithm == 'aes':
             key = AESEncryptor.generate_key()
+            # AES keys are raw bytes, encode as base64 for transport
+            key_str = base64.b64encode(key).decode('utf-8')
         else:
             return jsonify({'error': 'Invalid algorithm'}), 400
 
         # Return key as downloadable text
         return jsonify({
             'success': True,
-            'key': key.decode('utf-8'),
+            'key': key_str,
             'algorithm': algorithm
         })
 
@@ -121,8 +126,13 @@ def encrypt_file():
                 key = key_data
             encryptor = FernetEncryptor
         elif algorithm == 'aes':
+            # AES keys from API are base64-encoded
             if isinstance(key_data, str):
-                key = key_data.encode()
+                try:
+                    key = base64.b64decode(key_data)
+                except:
+                    # If not base64, treat as raw key
+                    key = key_data.encode()
             else:
                 key = key_data
             encryptor = AESEncryptor
@@ -198,8 +208,13 @@ def decrypt_file():
                 key = key_data
             decryptor = FernetEncryptor
         elif algorithm == 'aes':
+            # AES keys from API are base64-encoded
             if isinstance(key_data, str):
-                key = key_data.encode()
+                try:
+                    key = base64.b64decode(key_data)
+                except:
+                    # If not base64, treat as raw key
+                    key = key_data.encode()
             else:
                 key = key_data
             decryptor = AESEncryptor
