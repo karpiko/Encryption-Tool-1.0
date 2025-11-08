@@ -1,5 +1,5 @@
 """GUI modules for encryption tool."""
 
-from .main_window import EncryptionToolApp
-
-__all__ = ["EncryptionToolApp"]
+# Using tkinter-based GUI for compatibility
+# from .main_window import EncryptionToolApp
+# __all__ = ["EncryptionToolApp"]
