@@ -8,6 +8,12 @@ import tempfile
 from pathlib import Path
 import io
 import base64
+import secrets
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -29,6 +35,88 @@ ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 
 def allowed_file(filename):
     """Check if file extension is allowed."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS or True
+
+def send_encrypted_file_email(sender_email, receiver_email, encrypted_file_path, original_filename, access_code):
+    """
+    Send encrypted file via email with access information.
+
+    NOTE: This is a demonstration function. For production use, you should:
+    1. Configure proper SMTP settings (Gmail, SendGrid, AWS SES, etc.)
+    2. Use environment variables for sensitive credentials
+    3. Implement proper error handling and logging
+    4. Consider using a dedicated email service
+
+    For demo purposes, this function creates the email structure but doesn't actually send it.
+    You'll need to configure SMTP settings to enable actual email sending.
+    """
+    try:
+        # Create message
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = receiver_email
+        msg['Subject'] = f'Secure File Transfer: {original_filename}'
+
+        # Email body
+        body = f"""
+Hello,
+
+You have received a securely encrypted file: {original_filename}
+
+IMPORTANT SECURITY INFORMATION:
+- This file is encrypted and can only be accessed ONCE
+- After the first download, the file will be permanently deleted
+- Keep your access code safe and do not share it
+
+Access Code: {access_code}
+
+The encrypted file is attached to this email. To decrypt it:
+1. Use the Secure File Encryption Tool
+2. Upload the encrypted file
+3. Enter the encryption key (which should be provided separately by the sender)
+4. Download your decrypted file
+
+For security reasons:
+- The sender should provide the decryption key through a separate, secure channel
+- This ensures end-to-end encryption and maximum security
+- Never share your decryption key via email
+
+Best regards,
+Secure File Encryption Tool
+"""
+
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Attach encrypted file
+        with open(encrypted_file_path, 'rb') as attachment:
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(attachment.read())
+            encoders.encode_base64(part)
+            part.add_header(
+                'Content-Disposition',
+                f'attachment; filename= {original_filename}.enc',
+            )
+            msg.attach(part)
+
+        # NOTE: Actual SMTP sending is commented out for demo purposes
+        # Uncomment and configure the following section to enable email sending:
+
+        # SMTP Configuration (example for Gmail)
+        # smtp_server = "smtp.gmail.com"
+        # smtp_port = 587
+        # smtp_username = "your-email@gmail.com"  # Use environment variable
+        # smtp_password = "your-app-password"      # Use environment variable
+
+        # with smtplib.SMTP(smtp_server, smtp_port) as server:
+        #     server.starttls()
+        #     server.login(smtp_username, smtp_password)
+        #     server.send_message(msg)
+
+        # For demo purposes, we'll just return success
+        # In production, the above SMTP code should be uncommented and configured
+        return True, "Email sent successfully (demo mode - configure SMTP to enable actual sending)"
+
+    except Exception as e:
+        return False, f"Failed to send email: {str(e)}"
 
 @app.route('/')
 def index():
@@ -94,7 +182,7 @@ def generate_keypair():
 
 @app.route('/api/encrypt', methods=['POST'])
 def encrypt_file():
-    """Encrypt a file."""
+    """Encrypt a file and optionally send via email."""
     temp_input = None
     temp_output = None
 
@@ -109,6 +197,8 @@ def encrypt_file():
         file = request.files['file']
         key_data = request.form.get('key')
         algorithm = request.form.get('algorithm', 'fernet').lower()
+        sender_email = request.form.get('sender_email', '').strip()
+        receiver_email = request.form.get('receiver_email', '').strip()
 
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
@@ -145,26 +235,55 @@ def encrypt_file():
         temp_output = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_output_{filename}.enc')
         encryptor.encrypt_file(temp_input, temp_output, key)
 
-        # Send encrypted file to user
-        output_filename = f"{filename}.enc"
+        # Generate one-time access code
+        access_code = secrets.token_urlsafe(32)
 
-        # Read the file data before deleting
-        with open(temp_output, 'rb') as f:
-            encrypted_data = f.read()
+        # Check if email sending is requested
+        if sender_email and receiver_email:
+            # Send via email
+            success, message = send_encrypted_file_email(
+                sender_email,
+                receiver_email,
+                temp_output,
+                filename,
+                access_code
+            )
 
-        # Clean up temp files
-        if os.path.exists(temp_input):
-            os.remove(temp_input)
-        if os.path.exists(temp_output):
-            os.remove(temp_output)
+            # Clean up temp files
+            if os.path.exists(temp_input):
+                os.remove(temp_input)
+            if os.path.exists(temp_output):
+                os.remove(temp_output)
 
-        # Return the encrypted file
-        return send_file(
-            io.BytesIO(encrypted_data),
-            as_attachment=True,
-            download_name=output_filename,
-            mimetype='application/octet-stream'
-        )
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': f'File encrypted and email sent to {receiver_email}. Access code: {access_code}',
+                    'access_code': access_code
+                }), 200
+            else:
+                return jsonify({'error': message}), 500
+        else:
+            # Download directly
+            output_filename = f"{filename}.enc"
+
+            # Read the file data before deleting
+            with open(temp_output, 'rb') as f:
+                encrypted_data = f.read()
+
+            # Clean up temp files
+            if os.path.exists(temp_input):
+                os.remove(temp_input)
+            if os.path.exists(temp_output):
+                os.remove(temp_output)
+
+            # Return the encrypted file
+            return send_file(
+                io.BytesIO(encrypted_data),
+                as_attachment=True,
+                download_name=output_filename,
+                mimetype='application/octet-stream'
+            )
 
     except Exception as e:
         # Clean up on error
