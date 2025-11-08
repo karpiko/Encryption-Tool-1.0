@@ -1,129 +1,156 @@
-# Email Configuration Guide
+# Email Configuration Guide (Admin Only)
 
-This guide will help you set up email sending functionality for the File Encryption Tool.
+This guide is for **server administrators** who want to enable email sharing for users.
 
 ## Overview
 
-The web interface includes optional email sharing - users can send encrypted files directly to recipients via email. To enable this feature, you need to configure SMTP credentials.
+The web interface includes email sharing - users can send encrypted files to recipients. The system uses a **single server-side email account** to send all emails on behalf of users.
 
-## Prerequisites
+**Users don't need to configure anything** - they just enter sender and receiver email addresses in the web interface.
 
-- A Gmail account, or access to another SMTP server
-- For Gmail users: Your regular Gmail password won't work with this tool; you'll need an "App Password"
+## How It Works
 
-## Setup Instructions
+1. **Admin (you)**: Configure one email account in `.env` (one time setup)
+2. **Users**: Enter their email as "sender" and recipient email in the web form
+3. **System**: Sends email from the configured account, but shows user emails in headers
+4. **Recipient**: Receives email showing the user as the sender
 
-### Option 1: Gmail (Recommended)
+```
+User provides:
+  Sender: alice@company.com
+  Receiver: bob@company.com
 
-Gmail requires app-specific passwords for security. Follow these steps:
+System sends:
+  From: alice@company.com
+  To: bob@company.com
+  Via: noreply@yourserver.com (configured in .env)
 
-#### Step 1: Enable 2-Step Verification
-1. Go to [myaccount.google.com](https://myaccount.google.com)
-2. Click "Security" in the left menu
-3. Scroll to "How you sign in to Google"
-4. Click "2-Step Verification" and complete the setup
+Recipient sees: Email from alice@company.com with encrypted file attached
+```
 
-#### Step 2: Generate App Password
-1. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
-2. Select "Mail" as the app
-3. Select "Windows Computer" (or your device type)
-4. Google will generate a 16-character app password
-5. Copy this password - you'll use it in the next step
+## Quick Start (3 Steps)
 
-#### Step 3: Configure Environment Variables
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
+### Step 1: Copy Configuration Template
+```bash
+cp .env.example .env
+```
 
-2. Edit `.env` and fill in your details:
+### Step 2: Get Gmail App Password (if using Gmail)
+1. Go to https://myaccount.google.com/apppasswords
+2. If prompted, enable 2-Step Verification first
+3. Select "Mail" and "Windows Computer" (or your platform)
+4. Google generates a 16-character app password
+5. Copy this password
+
+### Step 3: Edit `.env` File
+```bash
+# Edit .env
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=xxxx xxxx xxxx xxxx  # Your 16-character app password
+```
+
+### Step 4: Install & Test
+```bash
+# Install python-dotenv if not already installed
+pip install -r requirements.txt
+
+# Start the server
+python3 web_main.py
+```
+
+## Email Provider Setup
+
+### Gmail (Recommended)
+
+**Requirements:**
+- Gmail account
+- 2-Factor Authentication enabled
+
+**Steps:**
+
+1. **Enable 2-Factor Authentication:**
+   - Go to https://myaccount.google.com/security
+   - Click "2-Step Verification"
+   - Follow the setup process
+
+2. **Generate App Password:**
+   - Go to https://myaccount.google.com/apppasswords
+   - You should see "App passwords" option
+   - Select "Mail" as the app
+   - Select "Windows Computer" (or your device)
+   - Google generates a 16-character password
+   - Copy it
+
+3. **Configure .env:**
    ```
    SMTP_SERVER=smtp.gmail.com
    SMTP_PORT=587
    SMTP_USERNAME=your-email@gmail.com
-   SMTP_PASSWORD=your-16-character-app-password
+   SMTP_PASSWORD=xxxx xxxx xxxx xxxx
    ```
 
-3. **Important**: Keep `.env` secret! It's already in `.gitignore` to prevent accidental commits.
+### Outlook
 
-### Option 2: Other Email Providers
-
-If you're using a different email provider (Outlook, Yahoo, SendGrid, etc.), configure accordingly:
-
-#### Example: Outlook
-```
+```bash
 SMTP_SERVER=smtp-mail.outlook.com
 SMTP_PORT=587
 SMTP_USERNAME=your-email@outlook.com
 SMTP_PASSWORD=your-password
 ```
 
-#### Example: SendGrid
-```
+### SendGrid
+
+```bash
 SMTP_SERVER=smtp.sendgrid.net
 SMTP_PORT=587
 SMTP_USERNAME=apikey
 SMTP_PASSWORD=SG.your-sendgrid-api-key
 ```
 
-#### Example: AWS SES
-```
-SMTP_SERVER=email-smtp.region.amazonaws.com
+### AWS SES
+
+```bash
+SMTP_SERVER=email-smtp.us-east-1.amazonaws.com
 SMTP_PORT=587
 SMTP_USERNAME=your-ses-username
 SMTP_PASSWORD=your-ses-password
 ```
 
-## Installation
+## Testing Email Configuration
 
-After configuring `.env`, install the required dependency:
+### Manual Test
 
+Edit `.env` and add temporary logging, then run:
 ```bash
-pip install python-dotenv
+python3 web_main.py
 ```
 
-Or update all dependencies:
-```bash
-pip install -r requirements.txt
-```
+Go to the web interface at http://127.0.0.1:8000:
+1. Select a file to encrypt
+2. Choose your encryption algorithm
+3. Enter your email as "Your Email"
+4. Enter a test recipient email as "Recipient Email"
+5. Click "Encrypt and Send via Email"
+6. Check the recipient's email for the encrypted file
 
-## Testing Email Functionality
-
-### Test via Web Interface
-
-1. Start the web application:
-   ```bash
-   python3 web_main.py
-   ```
-
-2. The application will open at `http://127.0.0.1:8000`
-
-3. In the **Encrypt** tab:
-   - Select a file to encrypt
-   - Choose your encryption algorithm
-   - Enter "Your Email" (sender address)
-   - Enter "Recipient Email" (recipient address)
-   - Click "Encrypt and Send via Email"
-
-4. Check if the recipient received the email with the encrypted file
-
-### Test via Python Script
-
-Create a test script `test_email.py`:
+### Test Script
 
 ```python
 import os
+import sys
 from src.web.app import send_encrypted_file_email
 
-# Create a test encrypted file
-test_file = "/tmp/test_encrypted.enc"
-with open(test_file, 'w') as f:
-    f.write(b"gAAAAABnEX...")
+# Create a test file
+test_file = "/tmp/test.enc"
+with open(test_file, 'wb') as f:
+    f.write(b"test encrypted content")
 
-# Test email sending
+# Test sending
 success, message = send_encrypted_file_email(
-    sender_email="sender@gmail.com",
-    receiver_email="recipient@gmail.com",
+    sender_email="sender@example.com",
+    receiver_email="recipient@example.com",
     encrypted_file_path=test_file,
     original_filename="test.txt",
     access_code="ABC123XYZ"
@@ -133,108 +160,169 @@ print(f"Success: {success}")
 print(f"Message: {message}")
 ```
 
-Run it:
-```bash
-python3 test_email.py
-```
-
 ## Troubleshooting
 
-### "Email sending not configured"
-- **Problem**: SMTP_USERNAME or SMTP_PASSWORD not set
-- **Solution**:
-  1. Verify `.env` file exists in project root
-  2. Check that SMTP_USERNAME and SMTP_PASSWORD are filled
-  3. Reinstall requirements: `pip install -r requirements.txt`
+### "Email sending not configured on this server"
 
-### "SMTP authentication failed"
-- **Problem**: Incorrect credentials
-- **Solution**:
-  - For Gmail: Ensure you're using an **App Password**, not your regular password
-  - Verify email address is correct
-  - Check password is exactly as provided by the email service
-  - Verify SMTP_SERVER and SMTP_PORT are correct
+**Problem:** SMTP credentials not set in `.env`
 
-### "Connection timed out"
-- **Problem**: Can't reach SMTP server
-- **Solution**:
-  - Verify SMTP_SERVER and SMTP_PORT are correct
-  - Check your firewall/network allows SMTP connections
-  - For port 587: ensure TLS is enabled
-  - Try port 465 (SSL) instead: set SMTP_PORT=465
+**Solution:**
+1. Verify `.env` file exists in project root
+2. Check that SMTP_USERNAME and SMTP_PASSWORD are filled
+3. Restart the server after editing `.env`
 
-### "Email sent successfully" but recipient didn't receive it
-- **Problem**: Email was sent but went to spam or bounced
-- **Solution**:
-  - Check spam folder
-  - Verify recipient email address is correct
-  - Check email service logs for bounces
-  - Some services have rate limiting - wait a moment and retry
+### "Email service authentication failed"
 
-### "Timeout" error
-- **Problem**: SMTP server took too long to respond
-- **Solution**:
-  - Check network connection
-  - Try a different SMTP server
-  - Increase timeout in code (currently 10 seconds)
+**Problem:** Wrong SMTP credentials
 
-## Security Best Practices
+**Solution:**
+- For Gmail:
+  - Verify you're using an **App Password**, not your regular password
+  - App passwords are 16 characters with spaces
+  - Requires 2-factor authentication
+- For other services:
+  - Verify username and password are correct
+  - Check with your email provider for correct SMTP settings
 
-1. **Never commit `.env`** - it contains credentials
-   - The `.env` file is in `.gitignore` - never remove it
-   - Verify with: `git status` (should not show .env)
+### "Email service error: Connection timed out"
 
-2. **Use app-specific passwords**
-   - For Gmail: Use App Passwords, not your main password
-   - For other services: Follow their security recommendations
+**Problem:** Can't reach SMTP server
 
-3. **Limit file sizes**
-   - Large attachments may exceed email server limits
-   - Default limit: 500MB for web uploads
-   - Email attachment limits vary by provider (Gmail: 25MB)
+**Solution:**
+1. Verify SMTP_SERVER and SMTP_PORT are correct for your provider
+2. Check firewall/network allows outgoing SMTP (port 587 or 465)
+3. Try port 465 (SSL) instead of 587 (TLS)
 
-4. **Log sensitive information carefully**
-   - Don't log SMTP credentials
-   - Error messages are visible to users (be cautious)
+### Email sent but recipient didn't receive it
 
-5. **Use TLS/SSL**
-   - Port 587: TLS (recommended)
-   - Port 465: SSL
-   - Never send credentials unencrypted
+**Problem:** Email bounced or went to spam
+
+**Solutions:**
+- Check recipient's spam folder
+- Verify recipient email address is correct
+- Check email service logs for bounce messages
+- Some services have rate limiting - wait and retry
+
+### Recipients see "From: noreply@..." instead of user's email
+
+**Note:** Some email providers (Gmail) override the "From" field with the actual SMTP account. This is normal for security reasons. Recipients can still reply, and it goes to the user's email (via Reply-To header).
+
+To mitigate this, consider using:
+- SendGrid or Mailgun with domain authentication
+- AWS SES with verified sender domains
+- Custom domain with DKIM/SPF records
+
+## User Instructions
+
+**Tell users:**
+
+> Users don't need to configure anything! Just enter:
+> 1. Your email address in "Your Email" field
+> 2. Recipient's email in "Recipient Email" field
+> 3. Select file and encryption algorithm
+> 4. Click "Encrypt and Send via Email"
+>
+> The encrypted file will be sent automatically!
+
+## Security Considerations
+
+### For Administrators
+
+1. **Keep .env Secure**
+   - Never commit .env to git (already in .gitignore)
+   - Restrict file permissions: `chmod 600 .env`
+   - Only deploy on secure servers
+
+2. **Use App Passwords (Gmail)**
+   - App passwords are safer than main passwords
+   - Can be revoked individually
+   - Don't grant access to your entire account
+
+3. **Monitor Email Usage**
+   - Most email providers have sending limits
+   - Gmail: 500 emails/day for free account
+   - SendGrid, Mailgun: Paid tiers with higher limits
+   - Monitor to prevent abuse
+
+4. **File Attachment Size**
+   - Web uploads limited to 500MB
+   - Email attachment limits vary by provider
+   - Gmail: 25MB limit
+   - Outlook: 20MB limit
+   - SendGrid: 30MB limit
+
+### For Users
+
+- Never share decryption keys via email
+- Sender should provide key through separate, secure channel
+- Only share encrypted files with intended recipients
 
 ## Advanced Configuration
 
-### Custom SMTP Timeouts
-Edit `src/web/app.py` line 119:
+### Rate Limiting
+
+If you have many users, consider adding rate limiting:
+
 ```python
-with smtplib.SMTP(smtp_server, smtp_port, timeout=30) as server:
+# In src/web/app.py, add before sending:
+time.sleep(1)  # 1 second delay between emails
 ```
 
-### Sending from Different Email
-By default, the "Your Email" field is used as the sender. The actual email account comes from SMTP_USERNAME. To allow custom sender:
-1. Some SMTP servers allow different "From" addresses
-2. Gmail requires the email to be your account
-3. Other services may have different restrictions
+### Logging Email Activity
 
-### HTML Email Body
-To send formatted HTML emails instead of plain text, modify `send_encrypted_file_email()` in `src/web/app.py`:
+Add logging to track sent emails:
+
 ```python
-msg.attach(MIMEText(body, 'html'))  # Change 'plain' to 'html'
+# In send_encrypted_file_email function, add:
+import logging
+logger = logging.getLogger(__name__)
+
+# After successful send:
+logger.info(f"Email sent from {sender_email} to {receiver_email}")
 ```
 
-## Need Help?
+### Custom Email Domain
 
-If you encounter issues:
+For better delivery rates, set up a custom domain:
 
-1. **Check error messages** - they often indicate the exact problem
-2. **Test SMTP credentials** - ensure they work with your email client first
-3. **Review logs** - application console shows detailed error information
-4. **Check email service documentation** - SMTP settings vary by provider
+1. Use SendGrid or Mailgun (easier than Gmail)
+2. Verify your domain with DKIM/SPF records
+3. Update SMTP_SERVER and SMTP_USERNAME in .env
+4. Sender emails will appear as "from your-domain.com"
 
 ## Disabling Email
 
-To disable email sharing completely, delete the `.env` file or set empty SMTP credentials. The application will gracefully fall back to direct download.
+To temporarily disable email sending:
+
+1. Delete the `.env` file, OR
+2. Set SMTP_USERNAME or SMTP_PASSWORD to empty in `.env`
+
+Users will see: "Email sending not configured on this server"
+
+## Need Help?
+
+1. **Check error messages** - they indicate the specific problem
+2. **Review logs** - application console shows detailed errors
+3. **Test with a simple email** - use the test script above
+4. **Check email provider docs** - SMTP settings vary
+
+## File Attachment Size Note
+
+```
+User's file: 10 MB
+System encrypts it: ~10 MB (encryption adds minimal overhead)
+Email attachment: ~10 MB (base64 encoded, ~33% larger)
+Email provider limit: 25-30 MB (Gmail 25MB, Outlook 20MB, SendGrid 30MB)
+```
+
+For large files (>20MB), warn users or implement file compression.
 
 ---
 
-For more information about the File Encryption Tool, see [README.md](README.md)
+**For email provider documentation:**
+- Gmail: https://support.google.com/accounts/answer/185833
+- Outlook: https://support.microsoft.com/en-us/office/pop-imap-and-smtp-settings
+- SendGrid: https://sendgrid.com/docs/for-developers/sending-email/
+- AWS SES: https://docs.aws.amazon.com/ses/latest/dg/
+
+For more information, see [README.md](README.md)

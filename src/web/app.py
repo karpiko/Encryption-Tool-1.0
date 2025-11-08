@@ -45,35 +45,46 @@ def allowed_file(filename):
 
 def send_encrypted_file_email(sender_email, receiver_email, encrypted_file_path, original_filename, access_code):
     """
-    Send encrypted file via email with access information.
+    Send encrypted file via email using a single server-side SMTP account.
 
-    Requires SMTP credentials configured via environment variables:
+    Users provide sender/receiver addresses - no account configuration needed.
+
+    Server-side SMTP Configuration (Admin Only):
     - SMTP_SERVER: SMTP server address (default: smtp.gmail.com)
     - SMTP_PORT: SMTP port (default: 587)
-    - SMTP_USERNAME: SMTP username/email
+    - SMTP_USERNAME: Server email account (e.g., noreply@example.com)
     - SMTP_PASSWORD: SMTP password or app-specific password
 
     For Gmail: Use app-specific password (not your regular password)
-    See setup instructions in EMAIL_SETUP.md
     """
     try:
-        # Get SMTP configuration from environment variables
+        # Get SMTP configuration from environment variables (server-side account only)
         smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
         smtp_port = int(os.getenv('SMTP_PORT', '587'))
-        smtp_username = os.getenv('SMTP_USERNAME', '')
+        smtp_username = os.getenv('SMTP_USERNAME', '')  # Server's email account
         smtp_password = os.getenv('SMTP_PASSWORD', '')
+
+        # Check if SMTP credentials are configured
+        if not smtp_username or not smtp_password:
+            return False, "Email sending not configured on this server. Please contact the administrator."
 
         # Create message
         msg = MIMEMultipart()
+
+        # Set email headers
+        # From/Reply-To show user emails for user-facing purposes
         msg['From'] = sender_email
+        msg['Reply-To'] = sender_email
         msg['To'] = receiver_email
         msg['Subject'] = f'Secure File Transfer: {original_filename}'
 
-        # Email body
+        # Email body with clear sender information
         body = f"""
 Hello,
 
-You have received a securely encrypted file: {original_filename}
+You have received a securely encrypted file from {sender_email}
+
+File: {original_filename}
 
 IMPORTANT SECURITY INFORMATION:
 - This file is encrypted and can only be accessed with the correct decryption key
@@ -92,6 +103,9 @@ For security reasons:
 - The sender should provide the decryption key through a separate, secure channel
 - This ensures end-to-end encryption and maximum security
 - Never share your decryption key via email
+- Only the owner of the decryption key can decrypt this file
+
+Questions? Reply to this email to contact the sender.
 
 Best regards,
 Secure File Encryption Tool
@@ -110,21 +124,18 @@ Secure File Encryption Tool
             )
             msg.attach(part)
 
-        # Check if SMTP credentials are configured
-        if not smtp_username or not smtp_password:
-            return False, "Email sending not configured. Please set SMTP credentials in environment variables (SMTP_USERNAME, SMTP_PASSWORD). See EMAIL_SETUP.md for instructions."
-
-        # Send email via SMTP
+        # Send email via SMTP using the server-side account
         try:
             with smtplib.SMTP(smtp_server, smtp_port, timeout=10) as server:
                 server.starttls()
                 server.login(smtp_username, smtp_password)
+                # Send using server account, but headers show user emails
                 server.send_message(msg)
             return True, f"Email sent successfully to {receiver_email}"
         except smtplib.SMTPAuthenticationError:
-            return False, "SMTP authentication failed. Check your SMTP_USERNAME and SMTP_PASSWORD. For Gmail, use an app-specific password."
+            return False, "Email service authentication failed. Please contact the administrator."
         except smtplib.SMTPException as e:
-            return False, f"SMTP error: {str(e)}"
+            return False, f"Email service error: {str(e)}"
         except Exception as e:
             return False, f"Failed to send email: {str(e)}"
 
