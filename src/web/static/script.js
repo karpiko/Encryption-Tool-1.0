@@ -208,6 +208,45 @@ async function generateRSAKeypair() {
     }
 }
 
+// Generate key for encrypt tab
+async function generateKeyForEncrypt() {
+    const algorithm = document.querySelector('input[name="encrypt_algo"]:checked').value;
+
+    try {
+        const response = await fetch('/api/generate-key', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ algorithm })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Auto-fill the key field
+            document.getElementById('encryptKey').value = data.key;
+            showStatus(
+                document.getElementById('encryptStatus'),
+                `✓ Random ${algorithm.toUpperCase()} key generated! Ready to encrypt.`,
+                'success'
+            );
+        } else {
+            showStatus(
+                document.getElementById('encryptStatus'),
+                `✗ Error: ${data.error}`,
+                'error'
+            );
+        }
+    } catch (error) {
+        showStatus(
+            document.getElementById('encryptStatus'),
+            `✗ Error: ${error.message}`,
+            'error'
+        );
+    }
+}
+
 // Helper functions
 function showStatus(element, message, type) {
     element.textContent = message;

@@ -55,8 +55,13 @@
                 <!-- Key Input -->
                 <div class="form-group">
                     <label for="encryptKey">Encryption Key</label>
-                    <textarea id="encryptKey" name="key" placeholder="Paste your encryption key here..." required></textarea>
-                    <small>Generate a new key using the Key Generation tab if you don't have one</small>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <textarea id="encryptKey" name="key" placeholder="Paste your encryption key here or generate a new one..." required style="flex: 1;"></textarea>
+                        <button type="button" class="btn btn-secondary" onclick="generateKeyForEncrypt()" style="white-space: nowrap; height: fit-content;">
+                            🔑 Generate Key
+                        </button>
+                    </div>
+                    <small>Click "Generate Key" for a random encryption key, or paste your own key</small>
                 </div>
 
                 <!-- Submit Button -->
@@ -98,6 +103,7 @@
                 <div class="form-group">
                     <label for="decryptKey">Decryption Key</label>
                     <textarea id="decryptKey" name="key" placeholder="Paste your decryption key here..." required></textarea>
+                    <small>Paste the same key you used for encryption</small>
                 </div>
 
                 <!-- Submit Button -->
