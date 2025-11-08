@@ -15,6 +15,13 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, will use os.environ
+
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -40,16 +47,22 @@ def send_encrypted_file_email(sender_email, receiver_email, encrypted_file_path,
     """
     Send encrypted file via email with access information.
 
-    NOTE: This is a demonstration function. For production use, you should:
-    1. Configure proper SMTP settings (Gmail, SendGrid, AWS SES, etc.)
-    2. Use environment variables for sensitive credentials
-    3. Implement proper error handling and logging
-    4. Consider using a dedicated email service
+    Requires SMTP credentials configured via environment variables:
+    - SMTP_SERVER: SMTP server address (default: smtp.gmail.com)
+    - SMTP_PORT: SMTP port (default: 587)
+    - SMTP_USERNAME: SMTP username/email
+    - SMTP_PASSWORD: SMTP password or app-specific password
 
-    For demo purposes, this function creates the email structure but doesn't actually send it.
-    You'll need to configure SMTP settings to enable actual email sending.
+    For Gmail: Use app-specific password (not your regular password)
+    See setup instructions in EMAIL_SETUP.md
     """
     try:
+        # Get SMTP configuration from environment variables
+        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        smtp_username = os.getenv('SMTP_USERNAME', '')
+        smtp_password = os.getenv('SMTP_PASSWORD', '')
+
         # Create message
         msg = MIMEMultipart()
         msg['From'] = sender_email
@@ -63,16 +76,16 @@ Hello,
 You have received a securely encrypted file: {original_filename}
 
 IMPORTANT SECURITY INFORMATION:
-- This file is encrypted and can only be accessed ONCE
-- After the first download, the file will be permanently deleted
+- This file is encrypted and can only be accessed with the correct decryption key
 - Keep your access code safe and do not share it
+- The decryption key should be provided separately by the sender
 
 Access Code: {access_code}
 
 The encrypted file is attached to this email. To decrypt it:
 1. Use the Secure File Encryption Tool
 2. Upload the encrypted file
-3. Enter the encryption key (which should be provided separately by the sender)
+3. Enter the encryption key (provided by sender through a separate channel)
 4. Download your decrypted file
 
 For security reasons:
@@ -93,30 +106,30 @@ Secure File Encryption Tool
             encoders.encode_base64(part)
             part.add_header(
                 'Content-Disposition',
-                f'attachment; filename= {original_filename}.enc',
+                f'attachment; filename={original_filename}.enc',
             )
             msg.attach(part)
 
-        # NOTE: Actual SMTP sending is commented out for demo purposes
-        # Uncomment and configure the following section to enable email sending:
+        # Check if SMTP credentials are configured
+        if not smtp_username or not smtp_password:
+            return False, "Email sending not configured. Please set SMTP credentials in environment variables (SMTP_USERNAME, SMTP_PASSWORD). See EMAIL_SETUP.md for instructions."
 
-        # SMTP Configuration (example for Gmail)
-        # smtp_server = "smtp.gmail.com"
-        # smtp_port = 587
-        # smtp_username = "your-email@gmail.com"  # Use environment variable
-        # smtp_password = "your-app-password"      # Use environment variable
-
-        # with smtplib.SMTP(smtp_server, smtp_port) as server:
-        #     server.starttls()
-        #     server.login(smtp_username, smtp_password)
-        #     server.send_message(msg)
-
-        # For demo purposes, we'll just return success
-        # In production, the above SMTP code should be uncommented and configured
-        return True, "Email sent successfully (demo mode - configure SMTP to enable actual sending)"
+        # Send email via SMTP
+        try:
+            with smtplib.SMTP(smtp_server, smtp_port, timeout=10) as server:
+                server.starttls()
+                server.login(smtp_username, smtp_password)
+                server.send_message(msg)
+            return True, f"Email sent successfully to {receiver_email}"
+        except smtplib.SMTPAuthenticationError:
+            return False, "SMTP authentication failed. Check your SMTP_USERNAME and SMTP_PASSWORD. For Gmail, use an app-specific password."
+        except smtplib.SMTPException as e:
+            return False, f"SMTP error: {str(e)}"
+        except Exception as e:
+            return False, f"Failed to send email: {str(e)}"
 
     except Exception as e:
-        return False, f"Failed to send email: {str(e)}"
+        return False, f"Error preparing email: {str(e)}"
 
 @app.route('/')
 def index():
