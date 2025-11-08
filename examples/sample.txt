@@ -1,0 +1,28 @@
+This is a sample text file for encryption demonstrations.
+
+The File Encryption/Decryption Tool supports multiple encryption algorithms:
+
+1. FERNET (Recommended for most use cases)
+   - Symmetric encryption (same key for encrypt/decrypt)
+   - Based on AES-128 with HMAC authentication
+   - Simple and secure
+   - Fast performance
+
+2. AES-256 (Advanced Encryption Standard)
+   - Symmetric encryption with 256-bit keys
+   - CBC mode with PKCS7 padding
+   - Suitable for large files
+   - Military-grade security
+
+3. RSA (Asymmetric encryption)
+   - Public/private key pair system
+   - Public key for encryption, private key for decryption
+   - Limited to small files (~190 bytes with 2048-bit key)
+   - Useful for key exchange
+
+Example Usage:
+1. Generate encryption key: python main.py generate-key --algorithm fernet --output mykey.key
+2. Encrypt file: python main.py encrypt --algorithm fernet --input sample.txt --output sample.txt.enc --key mykey.key
+3. Decrypt file: python main.py decrypt --algorithm fernet --input sample.txt.enc --output sample_decrypted.txt --key mykey.key
+
+Remember: Keep your keys safe! Store them in secure locations and never share them.
