@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Encryption Tool - Davenport University</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>File Encryption Tool</h1>
+            <p>Davenport University - Secure File Encryption</p>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Tab Navigation -->
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="encrypt">Encrypt</button>
+            <button class="tab-btn" data-tab="decrypt">Decrypt</button>
+            <button class="tab-btn" data-tab="keygen">Key Generation</button>
+        </nav>
+
+        <!-- Encrypt Tab -->
+        <section class="tab-content active" id="encrypt">
+            <h2>Encrypt File</h2>
+            <form id="encryptForm" class="form-section">
+                <!-- Algorithm Selection -->
+                <div class="form-group">
+                    <label>Encryption Algorithm</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="encrypt_algo" value="fernet" checked>
+                            <span>Fernet (Recommended)</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="encrypt_algo" value="aes">
+                            <span>AES-256</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- File Upload -->
+                <div class="form-group">
+                    <label for="encryptFile">Select File to Encrypt</label>
+                    <div class="file-upload">
+                        <input type="file" id="encryptFile" name="file" required>
+                        <span id="encryptFileName">No file selected</span>
+                    </div>
+                </div>
+
+                <!-- Key Input -->
+                <div class="form-group">
+                    <label for="encryptKey">Encryption Key</label>
+                    <textarea id="encryptKey" name="key" placeholder="Paste your encryption key here..." required></textarea>
+                    <small>Generate a new key using the Key Generation tab if you don't have one</small>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary">Encrypt File</button>
+                <div id="encryptStatus" class="status-message"></div>
+            </form>
+        </section>
+
+        <!-- Decrypt Tab -->
+        <section class="tab-content" id="decrypt">
+            <h2>Decrypt File</h2>
+            <form id="decryptForm" class="form-section">
+                <!-- Algorithm Selection -->
+                <div class="form-group">
+                    <label>Encryption Algorithm</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="decrypt_algo" value="fernet" checked>
+                            <span>Fernet (Recommended)</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="decrypt_algo" value="aes">
+                            <span>AES-256</span>
+                        </label>
+                    </div>
+                    <small>Use the same algorithm that was used for encryption</small>
+                </div>
+
+                <!-- File Upload -->
+                <div class="form-group">
+                    <label for="decryptFile">Select Encrypted File</label>
+                    <div class="file-upload">
+                        <input type="file" id="decryptFile" name="file" required>
+                        <span id="decryptFileName">No file selected</span>
+                    </div>
+                </div>
+
+                <!-- Key Input -->
+                <div class="form-group">
+                    <label for="decryptKey">Decryption Key</label>
+                    <textarea id="decryptKey" name="key" placeholder="Paste your decryption key here..." required></textarea>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-primary">Decrypt File</button>
+                <div id="decryptStatus" class="status-message"></div>
+            </form>
+        </section>
+
+        <!-- Key Generation Tab -->
+        <section class="tab-content" id="keygen">
+            <h2>Generate Encryption Keys</h2>
+
+            <!-- Symmetric Key Generation -->
+            <div class="form-section">
+                <h3>Symmetric Key (Fernet & AES-256)</h3>
+
+                <div class="form-group">
+                    <label>Algorithm</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="sym_algo" value="fernet" checked>
+                            <span>Fernet</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="sym_algo" value="aes">
+                            <span>AES-256</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-primary" onclick="generateSymmetricKey()">
+                    Generate Symmetric Key
+                </button>
+
+                <div id="symKeyOutput" class="key-output"></div>
+                <div id="symKeyStatus" class="status-message"></div>
+            </div>
+
+            <!-- RSA Keypair Generation -->
+            <div class="form-section">
+                <h3>RSA Keypair (Asymmetric)</h3>
+                <p>Creates public and private keys for asymmetric encryption</p>
+
+                <button type="button" class="btn btn-primary" onclick="generateRSAKeypair()">
+                    Generate RSA Keypair
+                </button>
+
+                <div id="rsaKeyOutput" class="key-output"></div>
+                <div id="rsaKeyStatus" class="status-message"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>⚠️ This tool is for educational purposes only. Keep your encryption keys safe!</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

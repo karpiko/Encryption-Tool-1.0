@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""
+Web GUI Entry Point for File Encryption Tool.
+
+Run this file to start the web-based GUI application.
+The application will open in your default web browser at http://localhost:5000
+"""
+
+import sys
+import os
+
+# Add src to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from src.web.app import run_app
+
+if __name__ == "__main__":
+    # Run the web application
+    run_app(debug=False, port=5000)
