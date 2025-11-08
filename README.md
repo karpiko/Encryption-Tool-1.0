@@ -38,7 +38,7 @@ A powerful and user-friendly command-line utility for encrypting and decrypting 
 ### Features
 
 **User Interfaces:**
-- Modern graphical user interface (GUI) with Davenport University branding
+- Modern graphical user interface (GUI)
 - Full-featured command-line interface (CLI) for advanced users
 - Both interfaces share the same encryption engines
 
@@ -92,7 +92,7 @@ A powerful and user-friendly command-line utility for encrypting and decrypting 
 
 ### Option 1: Graphical User Interface (GUI) - Recommended
 
-The GUI provides a beautiful, easy-to-use interface with Davenport University branding.
+The GUI provides a beautiful, easy-to-use interface.
 
 **Start the GUI:**
 ```bash
@@ -401,7 +401,7 @@ python -m pytest tests/ --cov=src
 - Security warnings about key protection
 
 ### Features
-- Modern UI with Davenport University branding (red/black/white color scheme)
+- Modern UI (red/black/white color scheme)
 - Intuitive tabbed interface
 - File browse dialogs
 - Real-time status bar with color-coded messages
@@ -436,7 +436,7 @@ encryption-tool/
 │   ├── test_aes.py
 │   └── test_rsa.py
 ├── assets/
-│   └── davenport_logo.png      # Davenport University logo
+│   └── app_logo.png            # Application logo
 ├── examples/
 │   └── sample.txt             # Example file
 ├── gui_main.py                # GUI entry point

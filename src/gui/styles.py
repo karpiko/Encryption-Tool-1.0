@@ -1,6 +1,6 @@
 """Styling and theme configuration for the GUI."""
 
-# Davenport University Colors
+# Application Colors
 DAVENPORT_RED = "#C8102E"
 DAVENPORT_BLACK = "#1F1F1F"
 DAVENPORT_WHITE = "#FFFFFF"

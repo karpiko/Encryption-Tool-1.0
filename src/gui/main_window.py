@@ -21,7 +21,7 @@ class EncryptionToolApp(ctk.CTk):
         super().__init__()
 
         # Configure window
-        self.title("File Encryption Tool - Davenport University")
+        self.title("File Encryption Tool")
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.resizable(True, True)
 
@@ -87,7 +87,7 @@ class EncryptionToolApp(ctk.CTk):
 
         subtitle = ctk.CTkLabel(
             title_frame,
-            text="Davenport University - Secure File Encryption",
+            text="Secure File Encryption",
             text_color=DAVENPORT_DARK_GRAY,
             font=("Segoe UI", 10),
             anchor="w",

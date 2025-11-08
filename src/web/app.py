@@ -263,7 +263,7 @@ def run_app(debug=False, port=8000):
     print("  File Encryption Tool - Web GUI")
     print("="*60)
     print(f"\n🌐 Opening application at: http://127.0.0.1:{port}")
-    print("🔐 Davenport University - Secure File Encryption\n")
+    print("🔐 Secure File Encryption\n")
 
     # Open browser
     import webbrowser

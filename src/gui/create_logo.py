@@ -1,11 +1,11 @@
-"""Create Davenport University logo placeholder."""
+"""Create application logo placeholder."""
 
 from PIL import Image, ImageDraw, ImageFont
 import os
 
 
 def create_davenport_logo():
-    """Create a Davenport University logo."""
+    """Create an application logo."""
     # Create image
     img = Image.new("RGB", (200, 200), color=(248, 249, 250))  # Light gray background
     draw = ImageDraw.Draw(img)

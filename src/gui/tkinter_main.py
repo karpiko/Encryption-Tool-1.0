@@ -13,7 +13,7 @@ from src.utils import FileHandler
 class EncryptionToolGUI:
     """Encryption Tool GUI using standard tkinter."""
 
-    # Colors - Davenport University branding
+    # Colors - Application branding
     DAVENPORT_RED = "#C8102E"
     DAVENPORT_BLACK = "#1F1F1F"
     DAVENPORT_WHITE = "#FFFFFF"
@@ -23,7 +23,7 @@ class EncryptionToolGUI:
     def __init__(self, root):
         """Initialize the GUI."""
         self.root = root
-        self.root.title("File Encryption Tool - Davenport University")
+        self.root.title("File Encryption Tool")
         self.root.geometry("900x650")
         self.root.resizable(True, True)
         self.root.configure(bg=self.BG_COLOR)
@@ -57,7 +57,7 @@ class EncryptionToolGUI:
 
         subtitle_label = tk.Label(
             header,
-            text="Davenport University - Secure File Encryption",
+            text="Secure File Encryption",
             font=("Helvetica", 10),
             bg=self.DAVENPORT_RED,
             fg=self.DAVENPORT_WHITE,
