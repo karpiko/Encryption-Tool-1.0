@@ -55,13 +55,26 @@ document.getElementById('encryptForm')?.addEventListener('submit', async (e) => 
             body: formData
         });
 
-        const data = await response.json();
-
         if (response.ok) {
-            showStatus(statusDiv, `✓ ${data.message}`, 'success');
+            // Response is a file blob, not JSON
+            const blob = await response.blob();
+            const filename = response.headers.get('Content-Disposition')
+                ?.split('filename=')[1]?.replace(/"/g, '') || file.name + '.enc';
+
+            // Trigger download
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            showStatus(statusDiv, `✓ File encrypted and downloaded successfully!`, 'success');
             document.getElementById('encryptForm').reset();
             document.getElementById('encryptFileName').textContent = 'No file selected';
         } else {
+            // Error response is JSON
+            const data = await response.json();
             showStatus(statusDiv, `✗ ${data.error}`, 'error');
         }
     } catch (error) {
@@ -100,13 +113,26 @@ document.getElementById('decryptForm')?.addEventListener('submit', async (e) => 
             body: formData
         });
 
-        const data = await response.json();
-
         if (response.ok) {
-            showStatus(statusDiv, `✓ ${data.message}`, 'success');
+            // Response is a file blob, not JSON
+            const blob = await response.blob();
+            const filename = response.headers.get('Content-Disposition')
+                ?.split('filename=')[1]?.replace(/"/g, '') || 'decrypted_file';
+
+            // Trigger download
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            showStatus(statusDiv, `✓ File decrypted and downloaded successfully!`, 'success');
             document.getElementById('decryptForm').reset();
             document.getElementById('decryptFileName').textContent = 'No file selected';
         } else {
+            // Error response is JSON
+            const data = await response.json();
             showStatus(statusDiv, `✗ ${data.error}`, 'error');
         }
     } catch (error) {

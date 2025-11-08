@@ -131,19 +131,27 @@ def encrypt_file():
             temp_output = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_output_{filename}.enc')
             encryptor.encrypt_file(temp_input, temp_output, key)
 
-            # Read encrypted file
-            with open(temp_output, 'rb') as f:
-                encrypted_data = f.read()
+            # Send encrypted file to user
+            output_filename = f"{filename}.enc"
 
-            # Clean up
-            os.remove(temp_input)
-            os.remove(temp_output)
+            @app.after_request
+            def cleanup(response):
+                """Clean up temp files after sending response."""
+                try:
+                    if os.path.exists(temp_input):
+                        os.remove(temp_input)
+                    if os.path.exists(temp_output):
+                        os.remove(temp_output)
+                except:
+                    pass
+                return response
 
-            return jsonify({
-                'success': True,
-                'message': 'File encrypted successfully',
-                'filename': f"{filename}.enc"
-            }), 200
+            return send_file(
+                temp_output,
+                as_attachment=True,
+                download_name=output_filename,
+                mimetype='application/octet-stream'
+            )
 
         except Exception as e:
             if os.path.exists(temp_input):
@@ -197,18 +205,28 @@ def decrypt_file():
             temp_output = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_output_{filename}')
             decryptor.decrypt_file(temp_input, temp_output, key)
 
-            # Read decrypted file
-            with open(temp_output, 'rb') as f:
-                decrypted_data = f.read()
+            # Send decrypted file to user
+            # Remove .enc or other extension and use original filename
+            output_filename = filename.rsplit('.', 1)[0] if '.' in filename else filename
 
-            # Clean up
-            os.remove(temp_input)
-            os.remove(temp_output)
+            @app.after_request
+            def cleanup(response):
+                """Clean up temp files after sending response."""
+                try:
+                    if os.path.exists(temp_input):
+                        os.remove(temp_input)
+                    if os.path.exists(temp_output):
+                        os.remove(temp_output)
+                except:
+                    pass
+                return response
 
-            return jsonify({
-                'success': True,
-                'message': 'File decrypted successfully'
-            }), 200
+            return send_file(
+                temp_output,
+                as_attachment=True,
+                download_name=output_filename,
+                mimetype='application/octet-stream'
+            )
 
         except Exception as e:
             if os.path.exists(temp_input):
