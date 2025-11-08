@@ -90,6 +90,9 @@ def generate_keypair():
 @app.route('/api/encrypt', methods=['POST'])
 def encrypt_file():
     """Encrypt a file."""
+    temp_input = None
+    temp_output = None
+
     try:
         # Check if file and key are provided
         if 'file' not in request.files:
@@ -110,60 +113,63 @@ def encrypt_file():
         temp_input = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_input_{filename}')
         file.save(temp_input)
 
-        try:
-            # Prepare key
-            if algorithm == 'fernet':
-                if isinstance(key_data, str):
-                    key = key_data.encode()
-                else:
-                    key = key_data
-                encryptor = FernetEncryptor
-            elif algorithm == 'aes':
-                if isinstance(key_data, str):
-                    key = key_data.encode()
-                else:
-                    key = key_data
-                encryptor = AESEncryptor
+        # Prepare key
+        if algorithm == 'fernet':
+            if isinstance(key_data, str):
+                key = key_data.encode()
             else:
-                return jsonify({'error': 'Invalid algorithm'}), 400
-
-            # Encrypt file
-            temp_output = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_output_{filename}.enc')
-            encryptor.encrypt_file(temp_input, temp_output, key)
-
-            # Send encrypted file to user
-            output_filename = f"{filename}.enc"
-
-            @app.after_request
-            def cleanup(response):
-                """Clean up temp files after sending response."""
-                try:
-                    if os.path.exists(temp_input):
-                        os.remove(temp_input)
-                    if os.path.exists(temp_output):
-                        os.remove(temp_output)
-                except:
-                    pass
-                return response
-
-            return send_file(
-                temp_output,
-                as_attachment=True,
-                download_name=output_filename,
-                mimetype='application/octet-stream'
-            )
-
-        except Exception as e:
+                key = key_data
+            encryptor = FernetEncryptor
+        elif algorithm == 'aes':
+            if isinstance(key_data, str):
+                key = key_data.encode()
+            else:
+                key = key_data
+            encryptor = AESEncryptor
+        else:
             if os.path.exists(temp_input):
                 os.remove(temp_input)
-            raise e
+            return jsonify({'error': 'Invalid algorithm'}), 400
+
+        # Encrypt file
+        temp_output = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_output_{filename}.enc')
+        encryptor.encrypt_file(temp_input, temp_output, key)
+
+        # Send encrypted file to user
+        output_filename = f"{filename}.enc"
+
+        # Read the file data before deleting
+        with open(temp_output, 'rb') as f:
+            encrypted_data = f.read()
+
+        # Clean up temp files
+        if os.path.exists(temp_input):
+            os.remove(temp_input)
+        if os.path.exists(temp_output):
+            os.remove(temp_output)
+
+        # Return the encrypted file
+        return send_file(
+            io.BytesIO(encrypted_data),
+            as_attachment=True,
+            download_name=output_filename,
+            mimetype='application/octet-stream'
+        )
 
     except Exception as e:
+        # Clean up on error
+        if temp_input and os.path.exists(temp_input):
+            os.remove(temp_input)
+        if temp_output and os.path.exists(temp_output):
+            os.remove(temp_output)
         return jsonify({'error': f'Encryption failed: {str(e)}'}), 500
 
 @app.route('/api/decrypt', methods=['POST'])
 def decrypt_file():
     """Decrypt a file."""
+    temp_input = None
+    temp_output = None
+
     try:
         # Check if file and key are provided
         if 'file' not in request.files:
@@ -184,56 +190,56 @@ def decrypt_file():
         temp_input = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_input_{filename}')
         file.save(temp_input)
 
-        try:
-            # Prepare key
-            if algorithm == 'fernet':
-                if isinstance(key_data, str):
-                    key = key_data.encode()
-                else:
-                    key = key_data
-                decryptor = FernetEncryptor
-            elif algorithm == 'aes':
-                if isinstance(key_data, str):
-                    key = key_data.encode()
-                else:
-                    key = key_data
-                decryptor = AESEncryptor
+        # Prepare key
+        if algorithm == 'fernet':
+            if isinstance(key_data, str):
+                key = key_data.encode()
             else:
-                return jsonify({'error': 'Invalid algorithm'}), 400
-
-            # Decrypt file
-            temp_output = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_output_{filename}')
-            decryptor.decrypt_file(temp_input, temp_output, key)
-
-            # Send decrypted file to user
-            # Remove .enc or other extension and use original filename
-            output_filename = filename.rsplit('.', 1)[0] if '.' in filename else filename
-
-            @app.after_request
-            def cleanup(response):
-                """Clean up temp files after sending response."""
-                try:
-                    if os.path.exists(temp_input):
-                        os.remove(temp_input)
-                    if os.path.exists(temp_output):
-                        os.remove(temp_output)
-                except:
-                    pass
-                return response
-
-            return send_file(
-                temp_output,
-                as_attachment=True,
-                download_name=output_filename,
-                mimetype='application/octet-stream'
-            )
-
-        except Exception as e:
+                key = key_data
+            decryptor = FernetEncryptor
+        elif algorithm == 'aes':
+            if isinstance(key_data, str):
+                key = key_data.encode()
+            else:
+                key = key_data
+            decryptor = AESEncryptor
+        else:
             if os.path.exists(temp_input):
                 os.remove(temp_input)
-            raise e
+            return jsonify({'error': 'Invalid algorithm'}), 400
+
+        # Decrypt file
+        temp_output = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_output_{filename}')
+        decryptor.decrypt_file(temp_input, temp_output, key)
+
+        # Send decrypted file to user
+        # Remove .enc or other extension and use original filename
+        output_filename = filename.rsplit('.', 1)[0] if '.' in filename else filename
+
+        # Read the file data before deleting
+        with open(temp_output, 'rb') as f:
+            decrypted_data = f.read()
+
+        # Clean up temp files
+        if os.path.exists(temp_input):
+            os.remove(temp_input)
+        if os.path.exists(temp_output):
+            os.remove(temp_output)
+
+        # Return the decrypted file
+        return send_file(
+            io.BytesIO(decrypted_data),
+            as_attachment=True,
+            download_name=output_filename,
+            mimetype='application/octet-stream'
+        )
 
     except Exception as e:
+        # Clean up on error
+        if temp_input and os.path.exists(temp_input):
+            os.remove(temp_input)
+        if temp_output and os.path.exists(temp_output):
+            os.remove(temp_output)
         return jsonify({'error': f'Decryption failed: {str(e)}'}), 500
 
 def run_app(debug=False, port=8000):
