@@ -37,14 +37,21 @@ A powerful and user-friendly command-line utility for encrypting and decrypting 
 
 ### Features
 
-- Multiple encryption algorithms to choose from
-- Simple command-line interface with clear options
+**User Interfaces:**
+- Modern graphical user interface (GUI) with Davenport University branding
+- Full-featured command-line interface (CLI) for advanced users
+- Both interfaces share the same encryption engines
+
+**Core Features:**
+- Multiple encryption algorithms to choose from (Fernet, AES-256, RSA)
 - Automatic key generation and management
-- Support for any file type (text, binary, images, etc.)
+- Support for any file type (text, binary, images, PDFs, etc.)
 - Clear error messages and validation
 - Color-coded output for better UX
 - File size information and validation
 - Comprehensive help documentation
+- Background processing for large file operations
+- Real-time status updates during encryption/decryption
 
 ## Installation
 
@@ -71,10 +78,45 @@ A powerful and user-friendly command-line utility for encrypting and decrypting 
    pip install -r requirements.txt
    ```
 
-4. **Verify installation**
+4. **Verify installation (CLI)**
    ```bash
-   python src/main.py --help
+   python3 src/main.py --help
    ```
+
+5. **Launch GUI (optional)**
+   ```bash
+   python3 gui_main.py
+   ```
+
+## Getting Started
+
+### Option 1: Graphical User Interface (GUI) - Recommended
+
+The GUI provides a beautiful, easy-to-use interface with Davenport University branding.
+
+**Start the GUI:**
+```bash
+python3 gui_main.py
+```
+
+**Features:**
+- Beautiful, modern interface with Davenport branding
+- Intuitive tabs for Encrypt, Decrypt, and Key Generation
+- File browse dialogs for easy file selection
+- Real-time file size information
+- Color-coded status messages
+- Drag-and-drop support (coming soon)
+- Background processing with status updates
+
+**GUI Workflow:**
+1. Click "Key Generation" tab to create encryption keys
+2. Click "Encrypt" tab to encrypt files
+3. Click "Decrypt" tab to decrypt files
+4. Check status bar for operation results
+
+### Option 2: Command-Line Interface (CLI)
+
+For advanced users who prefer terminal-based operation.
 
 ## Quick Start
 
@@ -329,6 +371,44 @@ python -m pytest tests/ --cov=src
   - Public/private key encryption
   - Key size limitations
 
+## GUI Interface Overview
+
+### Encrypt Tab
+- Select file to encrypt
+- Choose algorithm (Fernet or AES-256)
+- Select encryption key
+- Specify output file location
+- Real-time file size display
+- Status updates during encryption
+
+### Decrypt Tab
+- Select encrypted file
+- Choose decryption algorithm
+- Select decryption key
+- Specify output file location
+- File integrity verification
+- Clear error messages for wrong keys
+
+### Key Generation Tab
+**Symmetric Keys:**
+- Generate Fernet keys
+- Generate AES-256 keys
+- Save keys to specified location
+
+**RSA Keypair:**
+- Generate 2048-bit RSA keypairs
+- Creates both public and private keys
+- Security warnings about key protection
+
+### Features
+- Modern UI with Davenport University branding (red/black/white color scheme)
+- Intuitive tabbed interface
+- File browse dialogs
+- Real-time status bar with color-coded messages
+- Background processing for large files
+- Professional error handling and validation
+- Responsive design
+
 ## Architecture
 
 ### Project Structure
@@ -337,6 +417,14 @@ python -m pytest tests/ --cov=src
 encryption-tool/
 ├── src/
 │   ├── main.py                 # CLI interface
+│   ├── gui/                    # GUI modules
+│   │   ├── main_window.py      # Main application window
+│   │   ├── encrypt_tab.py      # Encrypt tab UI
+│   │   ├── decrypt_tab.py      # Decrypt tab UI
+│   │   ├── keygen_tab.py       # Key generation tab UI
+│   │   ├── styles.py           # UI theme and styling
+│   │   ├── utils.py            # GUI utility functions
+│   │   └── create_logo.py      # Logo generation
 │   ├── encryptors/             # Encryption algorithms
 │   │   ├── fernet_encryptor.py
 │   │   ├── aes_encryptor.py
@@ -347,8 +435,11 @@ encryption-tool/
 │   ├── test_fernet.py
 │   ├── test_aes.py
 │   └── test_rsa.py
+├── assets/
+│   └── davenport_logo.png      # Davenport University logo
 ├── examples/
 │   └── sample.txt             # Example file
+├── gui_main.py                # GUI entry point
 ├── requirements.txt            # Dependencies
 ├── README.md                  # This file
 └── LICENSE                    # MIT License
