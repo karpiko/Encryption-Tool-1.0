@@ -10,6 +10,9 @@ import io
 import base64
 import secrets
 import smtplib
+import hashlib
+import json
+from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -36,12 +39,37 @@ app = Flask(__name__,
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 
+# Decryption tracking - in-memory store for tracking which files have been decrypted
+# Key: hash of encrypted file content, Value: {count: int, timestamp: str, filename: str}
+DECRYPTION_TRACKING = {}
+
 # Allowed extensions
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'zip', 'enc', 'key', 'pem'}
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS or True
+
+def get_file_hash(file_content):
+    """Generate SHA256 hash of file content for tracking."""
+    return hashlib.sha256(file_content).hexdigest()
+
+def has_been_decrypted(file_content):
+    """Check if a file has already been decrypted."""
+    file_hash = get_file_hash(file_content)
+    return file_hash in DECRYPTION_TRACKING and DECRYPTION_TRACKING[file_hash].get('count', 0) > 0
+
+def mark_as_decrypted(file_content, filename):
+    """Mark a file as decrypted by incrementing its counter."""
+    file_hash = get_file_hash(file_content)
+    if file_hash not in DECRYPTION_TRACKING:
+        DECRYPTION_TRACKING[file_hash] = {
+            'count': 0,
+            'timestamp': datetime.now().isoformat(),
+            'filename': filename
+        }
+    DECRYPTION_TRACKING[file_hash]['count'] += 1
+    return DECRYPTION_TRACKING[file_hash]['count']
 
 def send_encrypted_file_email(sender_email, receiver_email, encrypted_file_path, original_filename, access_code):
     """
@@ -87,10 +115,11 @@ You have received a securely encrypted file from {sender_email}
 File: {original_filename}
 
 IMPORTANT SECURITY INFORMATION:
-- This file is encrypted and can be accessed twice with the access code
+⚠️  WARNING: This file can ONLY be decrypted ONE TIME
+- Once you decrypt it, it cannot be decrypted again
+- Save the decrypted file before closing - you won't be able to decrypt it again
 - Keep your access code safe and do not share it
 - The decryption key should be provided separately by the sender
-- After 2 downloads, the file will be automatically deleted
 
 Access Code: {access_code}
 
@@ -98,14 +127,15 @@ The encrypted file is attached to this email. To decrypt it:
 1. Use the Secure File Encryption Tool
 2. Upload the encrypted file
 3. Enter the encryption key (provided by sender through a separate channel)
-4. Download your decrypted file
+4. Download your decrypted file and SAVE IT
+5. After first decryption, the file cannot be decrypted again
 
 For security reasons:
 - The sender should provide the decryption key through a separate, secure channel
 - This ensures end-to-end encryption and maximum security
 - Never share your decryption key via email
 - Only the owner of the decryption key can decrypt this file
-- You can download this file twice - save it before the second download expires
+- Decryption is one-time only - save the file immediately after decryption
 
 Questions? Reply to this email to contact the sender.
 
@@ -321,7 +351,7 @@ def encrypt_file():
 
 @app.route('/api/decrypt', methods=['POST'])
 def decrypt_file():
-    """Decrypt a file."""
+    """Decrypt a file - ONE TIME ONLY."""
     temp_input = None
     temp_output = None
 
@@ -344,6 +374,18 @@ def decrypt_file():
         filename = secure_filename(file.filename)
         temp_input = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_input_{filename}')
         file.save(temp_input)
+
+        # Read the encrypted file content to check if it's been decrypted before
+        with open(temp_input, 'rb') as f:
+            encrypted_content = f.read()
+
+        # Check if this file has already been decrypted
+        if has_been_decrypted(encrypted_content):
+            if os.path.exists(temp_input):
+                os.remove(temp_input)
+            return jsonify({
+                'error': '❌ ONE-TIME ACCESS LIMIT REACHED\n\nThis encrypted file has already been decrypted once and cannot be decrypted again. This is a security feature to protect your data.\n\nIf you need the file again, ask the sender to encrypt and send a new copy.'
+            }), 403
 
         # Prepare key
         if algorithm == 'fernet':
@@ -385,6 +427,9 @@ def decrypt_file():
             os.remove(temp_input)
         if os.path.exists(temp_output):
             os.remove(temp_output)
+
+        # Mark this encrypted file as decrypted (one-time use)
+        mark_as_decrypted(encrypted_content, filename)
 
         # Return the decrypted file
         return send_file(
