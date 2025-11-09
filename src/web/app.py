@@ -87,9 +87,10 @@ You have received a securely encrypted file from {sender_email}
 File: {original_filename}
 
 IMPORTANT SECURITY INFORMATION:
-- This file is encrypted and can only be accessed with the correct decryption key
+- This file is encrypted and can be accessed twice with the access code
 - Keep your access code safe and do not share it
 - The decryption key should be provided separately by the sender
+- After 2 downloads, the file will be automatically deleted
 
 Access Code: {access_code}
 
@@ -104,6 +105,7 @@ For security reasons:
 - This ensures end-to-end encryption and maximum security
 - Never share your decryption key via email
 - Only the owner of the decryption key can decrypt this file
+- You can download this file twice - save it before the second download expires
 
 Questions? Reply to this email to contact the sender.
 
