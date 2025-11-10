@@ -100,7 +100,7 @@ python3 gui_main.py
 ```
 
 **Features:**
-- Beautiful, modern interface with Davenport branding
+- Beautiful, modern interface
 - Intuitive tabs for Encrypt, Decrypt, and Key Generation
 - File browse dialogs for easy file selection
 - Real-time file size information
