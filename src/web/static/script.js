@@ -15,7 +15,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 // File input listeners
 document.getElementById('encryptFile')?.addEventListener('change', (e) => {
-    const fileName = e.target.files[0]?.name || 'No file selected';
+    const fileName = e.target.files[0]?.name || 'Drop file here or click to browse';
     document.getElementById('encryptFileName').textContent = fileName;
 });
 
@@ -31,6 +31,8 @@ document.getElementById('encryptForm')?.addEventListener('submit', async (e) => 
     const file = document.getElementById('encryptFile').files[0];
     const key = document.getElementById('encryptKey').value;
     const algorithm = document.querySelector('input[name="encrypt_algo"]:checked').value;
+    const senderEmail = document.getElementById('senderEmail').value.trim();
+    const receiverEmail = document.getElementById('receiverEmail').value.trim();
     const statusDiv = document.getElementById('encryptStatus');
 
     if (!file) {
@@ -43,35 +45,61 @@ document.getElementById('encryptForm')?.addEventListener('submit', async (e) => 
         return;
     }
 
+    // Validate email fields - both or neither must be filled
+    if ((senderEmail && !receiverEmail) || (!senderEmail && receiverEmail)) {
+        showStatus(statusDiv, 'Please provide both sender and receiver email addresses, or leave both empty', 'error');
+        return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('key', key);
     formData.append('algorithm', algorithm);
 
+    if (senderEmail && receiverEmail) {
+        formData.append('sender_email', senderEmail);
+        formData.append('receiver_email', receiverEmail);
+    }
+
     try {
-        showStatus(statusDiv, 'Encrypting file...', 'info');
+        const processingMessage = senderEmail && receiverEmail
+            ? 'Encrypting file and preparing to send via email...'
+            : 'Encrypting file...';
+        showStatus(statusDiv, processingMessage, 'info');
+
         const response = await fetch('/api/encrypt', {
             method: 'POST',
             body: formData
         });
 
         if (response.ok) {
-            // Response is a file blob, not JSON
-            const blob = await response.blob();
-            const filename = response.headers.get('Content-Disposition')
-                ?.split('filename=')[1]?.replace(/"/g, '') || file.name + '.enc';
+            // Check if response is JSON (email sent) or blob (download)
+            const contentType = response.headers.get('Content-Type');
 
-            // Trigger download
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            window.URL.revokeObjectURL(url);
+            if (contentType && contentType.includes('application/json')) {
+                // Email was sent
+                const data = await response.json();
+                showStatus(statusDiv, `✓ ${data.message}`, 'success');
+                document.getElementById('encryptForm').reset();
+                document.getElementById('encryptFileName').textContent = 'Drop file here or click to browse';
+            } else {
+                // Download file
+                const blob = await response.blob();
+                const filename = response.headers.get('Content-Disposition')
+                    ?.split('filename=')[1]?.replace(/"/g, '') || file.name + '.enc';
 
-            showStatus(statusDiv, `✓ File encrypted and downloaded successfully!`, 'success');
-            document.getElementById('encryptForm').reset();
-            document.getElementById('encryptFileName').textContent = 'No file selected';
+                // Trigger download
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                window.URL.revokeObjectURL(url);
+
+                showStatus(statusDiv, `✓ File encrypted and downloaded successfully!`, 'success');
+                document.getElementById('encryptForm').reset();
+                document.getElementById('encryptFileName').textContent = 'Drop file here or click to browse';
+            }
         } else {
             // Error response is JSON
             const data = await response.json();

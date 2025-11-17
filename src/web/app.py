@@ -8,6 +8,22 @@ import tempfile
 from pathlib import Path
 import io
 import base64
+import secrets
+import smtplib
+import hashlib
+import json
+from datetime import datetime
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, will use os.environ
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -23,12 +39,140 @@ app = Flask(__name__,
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max file size
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 
+# Decryption tracking - in-memory store for tracking which files have been decrypted
+# Key: hash of encrypted file content, Value: {count: int, timestamp: str, filename: str}
+DECRYPTION_TRACKING = {}
+
 # Allowed extensions
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'zip', 'enc', 'key', 'pem'}
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS or True
+
+def get_file_hash(file_content):
+    """Generate SHA256 hash of file content for tracking."""
+    return hashlib.sha256(file_content).hexdigest()
+
+def has_been_decrypted(file_content):
+    """Check if a file has already been decrypted."""
+    file_hash = get_file_hash(file_content)
+    return file_hash in DECRYPTION_TRACKING and DECRYPTION_TRACKING[file_hash].get('count', 0) > 0
+
+def mark_as_decrypted(file_content, filename):
+    """Mark a file as decrypted by incrementing its counter."""
+    file_hash = get_file_hash(file_content)
+    if file_hash not in DECRYPTION_TRACKING:
+        DECRYPTION_TRACKING[file_hash] = {
+            'count': 0,
+            'timestamp': datetime.now().isoformat(),
+            'filename': filename
+        }
+    DECRYPTION_TRACKING[file_hash]['count'] += 1
+    return DECRYPTION_TRACKING[file_hash]['count']
+
+def send_encrypted_file_email(sender_email, receiver_email, encrypted_file_path, original_filename, access_code):
+    """
+    Send encrypted file via email using a single server-side SMTP account.
+
+    Users provide sender/receiver addresses - no account configuration needed.
+
+    Server-side SMTP Configuration (Admin Only):
+    - SMTP_SERVER: SMTP server address (default: smtp.gmail.com)
+    - SMTP_PORT: SMTP port (default: 587)
+    - SMTP_USERNAME: Server email account (e.g., noreply@example.com)
+    - SMTP_PASSWORD: SMTP password or app-specific password
+
+    For Gmail: Use app-specific password (not your regular password)
+    """
+    try:
+        # Get SMTP configuration from environment variables (server-side account only)
+        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        smtp_username = os.getenv('SMTP_USERNAME', '')  # Server's email account
+        smtp_password = os.getenv('SMTP_PASSWORD', '')
+
+        # Check if SMTP credentials are configured
+        if not smtp_username or not smtp_password:
+            return False, "Email sending not configured on this server. Please contact the administrator."
+
+        # Create message
+        msg = MIMEMultipart()
+
+        # Set email headers
+        # From/Reply-To show user emails for user-facing purposes
+        msg['From'] = sender_email
+        msg['Reply-To'] = sender_email
+        msg['To'] = receiver_email
+        msg['Subject'] = f'Secure File Transfer: {original_filename}'
+
+        # Email body with clear sender information
+        body = f"""
+Hello,
+
+You have received a securely encrypted file from {sender_email}
+
+File: {original_filename}
+
+IMPORTANT SECURITY INFORMATION:
+⚠️  WARNING: This file can ONLY be decrypted ONE TIME
+- Once you decrypt it, it cannot be decrypted again
+- Save the decrypted file before closing - you won't be able to decrypt it again
+- Keep your access code safe and do not share it
+- The decryption key should be provided separately by the sender
+
+Access Code: {access_code}
+
+The encrypted file is attached to this email. To decrypt it:
+1. Use the Secure File Encryption Tool
+2. Upload the encrypted file
+3. Enter the encryption key (provided by sender through a separate channel)
+4. Download your decrypted file and SAVE IT
+5. After first decryption, the file cannot be decrypted again
+
+For security reasons:
+- The sender should provide the decryption key through a separate, secure channel
+- This ensures end-to-end encryption and maximum security
+- Never share your decryption key via email
+- Only the owner of the decryption key can decrypt this file
+- Decryption is one-time only - save the file immediately after decryption
+
+Questions? Reply to this email to contact the sender.
+
+Best regards,
+Secure File Encryption Tool
+"""
+
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Attach encrypted file
+        with open(encrypted_file_path, 'rb') as attachment:
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(attachment.read())
+            encoders.encode_base64(part)
+            part.add_header(
+                'Content-Disposition',
+                f'attachment; filename={original_filename}.enc',
+            )
+            msg.attach(part)
+
+        # Send email via SMTP using the server-side account
+        try:
+            with smtplib.SMTP(smtp_server, smtp_port, timeout=10) as server:
+                server.starttls()
+                server.login(smtp_username, smtp_password)
+                # Send using server account, but headers show user emails
+                server.send_message(msg)
+            return True, f"Email sent successfully to {receiver_email}"
+        except smtplib.SMTPAuthenticationError:
+            return False, "Email service authentication failed. Please contact the administrator."
+        except smtplib.SMTPException as e:
+            return False, f"Email service error: {str(e)}"
+        except Exception as e:
+            return False, f"Failed to send email: {str(e)}"
+
+    except Exception as e:
+        return False, f"Error preparing email: {str(e)}"
 
 @app.route('/')
 def index():
@@ -94,7 +238,7 @@ def generate_keypair():
 
 @app.route('/api/encrypt', methods=['POST'])
 def encrypt_file():
-    """Encrypt a file."""
+    """Encrypt a file and optionally send via email."""
     temp_input = None
     temp_output = None
 
@@ -109,6 +253,8 @@ def encrypt_file():
         file = request.files['file']
         key_data = request.form.get('key')
         algorithm = request.form.get('algorithm', 'fernet').lower()
+        sender_email = request.form.get('sender_email', '').strip()
+        receiver_email = request.form.get('receiver_email', '').strip()
 
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
@@ -145,26 +291,55 @@ def encrypt_file():
         temp_output = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_output_{filename}.enc')
         encryptor.encrypt_file(temp_input, temp_output, key)
 
-        # Send encrypted file to user
-        output_filename = f"{filename}.enc"
+        # Generate one-time access code
+        access_code = secrets.token_urlsafe(32)
 
-        # Read the file data before deleting
-        with open(temp_output, 'rb') as f:
-            encrypted_data = f.read()
+        # Check if email sending is requested
+        if sender_email and receiver_email:
+            # Send via email
+            success, message = send_encrypted_file_email(
+                sender_email,
+                receiver_email,
+                temp_output,
+                filename,
+                access_code
+            )
 
-        # Clean up temp files
-        if os.path.exists(temp_input):
-            os.remove(temp_input)
-        if os.path.exists(temp_output):
-            os.remove(temp_output)
+            # Clean up temp files
+            if os.path.exists(temp_input):
+                os.remove(temp_input)
+            if os.path.exists(temp_output):
+                os.remove(temp_output)
 
-        # Return the encrypted file
-        return send_file(
-            io.BytesIO(encrypted_data),
-            as_attachment=True,
-            download_name=output_filename,
-            mimetype='application/octet-stream'
-        )
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': f'File encrypted and email sent to {receiver_email}. Access code: {access_code}',
+                    'access_code': access_code
+                }), 200
+            else:
+                return jsonify({'error': message}), 500
+        else:
+            # Download directly
+            output_filename = f"{filename}.enc"
+
+            # Read the file data before deleting
+            with open(temp_output, 'rb') as f:
+                encrypted_data = f.read()
+
+            # Clean up temp files
+            if os.path.exists(temp_input):
+                os.remove(temp_input)
+            if os.path.exists(temp_output):
+                os.remove(temp_output)
+
+            # Return the encrypted file
+            return send_file(
+                io.BytesIO(encrypted_data),
+                as_attachment=True,
+                download_name=output_filename,
+                mimetype='application/octet-stream'
+            )
 
     except Exception as e:
         # Clean up on error
@@ -176,7 +351,7 @@ def encrypt_file():
 
 @app.route('/api/decrypt', methods=['POST'])
 def decrypt_file():
-    """Decrypt a file."""
+    """Decrypt a file - ONE TIME ONLY."""
     temp_input = None
     temp_output = None
 
@@ -199,6 +374,18 @@ def decrypt_file():
         filename = secure_filename(file.filename)
         temp_input = os.path.join(app.config['UPLOAD_FOLDER'], f'temp_input_{filename}')
         file.save(temp_input)
+
+        # Read the encrypted file content to check if it's been decrypted before
+        with open(temp_input, 'rb') as f:
+            encrypted_content = f.read()
+
+        # Check if this file has already been decrypted
+        if has_been_decrypted(encrypted_content):
+            if os.path.exists(temp_input):
+                os.remove(temp_input)
+            return jsonify({
+                'error': '❌ ONE-TIME ACCESS LIMIT REACHED\n\nThis encrypted file has already been decrypted once and cannot be decrypted again. This is a security feature to protect your data.\n\nIf you need the file again, ask the sender to encrypt and send a new copy.'
+            }), 403
 
         # Prepare key
         if algorithm == 'fernet':
@@ -240,6 +427,9 @@ def decrypt_file():
             os.remove(temp_input)
         if os.path.exists(temp_output):
             os.remove(temp_output)
+
+        # Mark this encrypted file as decrypted (one-time use)
+        mark_as_decrypted(encrypted_content, filename)
 
         # Return the decrypted file
         return send_file(
